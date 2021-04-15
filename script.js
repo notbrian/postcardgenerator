@@ -1,6 +1,7 @@
 // console.log("Hello World!");
 // https://github.com/tensorflow/tfjs-models/tree/master/body-pix
 //https://learn.ml5js.org/#/reference/bodypix?id=segmentwithparts
+
 let bodypix;
 let video;
 let segmentation;
@@ -34,7 +35,7 @@ function videoReady() {
 function draw() {
   background(0);
   if (segmentation) {
-    image(segmentation.segmentation, 0, 0, width, height);
+    image(segmentation.partMask, 0, 0, width, height);
   }
 }
 
