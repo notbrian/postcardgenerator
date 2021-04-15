@@ -1,14 +1,16 @@
 // console.log("Hello World!");
-
+// https://github.com/tensorflow/tfjs-models/tree/master/body-pix
+//https://learn.ml5js.org/#/reference/bodypix?id=segmentwithparts
 let bodypix;
 let video;
 let segmentation;
+let img;
 
 const options = {
   multiplier: 0.75, // 1.0, 0.75, or 0.50, 0.25
   outputStride: 8, // 8, 16, or 32, default is 16
   segmentationThreshold: 0.2, // 0 - 1, defaults to 0.5
-//   palette: leftFace,
+  //   palette: leftFace,
 };
 
 function preload() {
@@ -18,18 +20,21 @@ function preload() {
 function setup() {
   createCanvas(320, 240);
   // load up your video
-  video = createCapture(VIDEO, videoReady);
-  video.size(width, height);
+  // video = createCapture(VIDEO, videoReady);
+  img = loadImage("me.jpg");
+  bodypix.segmentWithParts(img, gotResults);
+
+  // video.size(width, height);
 }
 
 function videoReady() {
-  bodypix.segment(video, gotResults);
+  // bodypix.segment(img, gotResults);
 }
 
 function draw() {
   background(0);
   if (segmentation) {
-    image(segmentation.backgroundMask, 0, 0, width, height);
+    image(segmentation.segmentation, 0, 0, width, height);
   }
 }
 
@@ -39,5 +44,5 @@ function gotResults(error, result) {
     return;
   }
   segmentation = result;
-  bodypix.segment(video, gotResults);
+  console.log(segmentation);
 }
