@@ -4,7 +4,7 @@
 
 // let bodypix;
 // let video;
-// let segmentation;
+let segmentation;
 // let img;
 
 let poseNet;
@@ -24,33 +24,26 @@ var s1 = function (sketch) {
     segmentationThreshold: 0.8, // 0 - 1, defaults to 0.5
   };
 
-
-
   sketch.preload = function () {
     bodypix = ml5.bodyPix(options);
   };
 
-
-
-
   sketch.setup = function () {
-    let canvas1 = sketch.createCanvas(320, 240,);
+    let canvas1 = sketch.createCanvas(320, 240);
     //canvas1.position(0, 0);
-    img1 = sketch.createImage("me.jpg");
+    img1 = sketch.loadImage("me.jpg");
     bodypix.segmentWithParts(img1, gotResults);
   };
 
-
-
-
   sketch.draw = function () {
     sketch.background(100);
-    // if (segmentation1) {
-    //   image(segmentation1.personMask, 0, 0, width, height);
-    // }
+
+    if (segmentation1) {
+      sketch.image(segmentation1.personMask, 0, 0, sketch.width, sketch.height);
+    }
   };
 
-  function gotResults(error, result){
+  function gotResults(error, result) {
     if (error) {
       console.log(error);
       return;
@@ -58,12 +51,14 @@ var s1 = function (sketch) {
     segmentation1 = result;
     segmentation1.partMask.loadPixels();
     segmentation1.personMask.loadPixels();
-  
+
     console.log(segmentation1);
-  
+
     let leftFaceColor = JSON.stringify(segmentation1.bodyParts.leftFace.color);
-    let rightFaceColor = JSON.stringify(segmentation1.bodyParts.rightFace.color);
-  
+    let rightFaceColor = JSON.stringify(
+      segmentation1.bodyParts.rightFace.color
+    );
+
     for (let i = 0; i < segmentation1.personMask.pixels.length; i += 4) {
       let maskColor = JSON.stringify([
         segmentation1.partMask.pixels[i],
@@ -78,19 +73,12 @@ var s1 = function (sketch) {
         segmentation1.personMask.pixels[i + 3] = 0;
       }
     }
-  
+
     segmentation1.personMask.updatePixels();
-  };
+  }
 };
 
 new p5(s1);
-
-
-
-
-
-
-
 
 const options = {
   multiplier: 0.5, // 1.0, 0.75, or 0.50, 0.25
@@ -112,7 +100,6 @@ function setup() {
   img = loadImage("me.jpg");
   bodypix.segmentWithParts(img, gotResults);
   // video.size(width, height);
-
 }
 
 function videoReady() {
