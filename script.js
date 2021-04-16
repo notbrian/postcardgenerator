@@ -4,12 +4,10 @@
 
 // let bodypix;
 // let video;
-let segmentation;
+// let segmentation;
 // let img;
 
-let poseNet;
-let tajIMG;
-let poses = [];
+function draw() {}
 
 ///////1st canvas for bodyPix
 var s1 = function (sketch) {
@@ -26,21 +24,14 @@ var s1 = function (sketch) {
 
   sketch.preload = function () {
     bodypix = ml5.bodyPix(options);
+    img1 = sketch.loadImage("me.jpg");
   };
 
   sketch.setup = function () {
     let canvas1 = sketch.createCanvas(320, 240);
     //canvas1.position(0, 0);
-    img1 = sketch.loadImage("me.jpg");
+
     bodypix.segmentWithParts(img1, gotResults);
-  };
-
-  sketch.draw = function () {
-    sketch.background(100);
-
-    if (segmentation1) {
-      sketch.image(segmentation1.personMask, 0, 0, sketch.width, sketch.height);
-    }
   };
 
   function gotResults(error, result) {
@@ -76,84 +67,122 @@ var s1 = function (sketch) {
 
     segmentation1.personMask.updatePixels();
   }
+
+  sketch.draw = function () {
+    sketch.background(100);
+    if (segmentation1) {
+      sketch.image(segmentation1.personMask, 0, 0, sketch.width, sketch.height);
+    }
+  };
 };
 
 new p5(s1);
 
-const options = {
-  multiplier: 0.5, // 1.0, 0.75, or 0.50, 0.25
-  outputStride: 8, // 8, 16, or 32, default is 16
-  segmentationThreshold: 0.8, // 0 - 1, defaults to 0.5
-};
+////////2nd canvas for poseNet
+var s2 = function (sketch) {
+  let imgPose;
+  let imgBP;
+  let poseNet;
+  let poses = [];
+  let width = 569;
+  let height = 320;
+  let noseX = 0;
+  let noseY = 0;
 
-function preload() {
-  bodypix = ml5.bodyPix(options);
-}
+  sketch.setup = function () {
+    let canvas2 = sketch.createCanvas(width, height);
 
-function setup() {
-  createCanvas(320, 240);
+    imgPose = sketch.createImg("tajMahal.png", imageReady);
+    imgPose.hide();
+    sketch.frameRate(1);
 
-  //////Setup for BodyPix//////
-  // load up your video
-  // video = createCapture(VIDEO, videoReady);
+    imgBP = sketch.createImg("me.jpg");
+    imgBP.hide();
+  };
 
-  img = loadImage("me.jpg");
-  bodypix.segmentWithParts(img, gotResults);
-  // video.size(width, height);
-}
-
-function videoReady() {
-  // bodypix.segment(img, gotResults);
-}
-
-function draw() {
-  background(0);
-  if (segmentation) {
-    image(segmentation.personMask, 0, 0, width, height);
+  function imageReady() {
+    const options = {
+      minConfidenc: 0.1,
+      //resolution needs to be same width and height to have better results
+      inputResolution: { width, height },
+    };
+    //initialising ml5 poseNet
+    poseNet = ml5.poseNet(modelReady, options);
+    poseNet.on("pose", function (results) {
+      poses = results;
+    });
   }
-}
-
-function gotResults(error, result) {
-  if (error) {
-    console.log(error);
-    return;
+  //model that will define if multiple or single(singlePose) detection
+  function modelReady() {
+    poseNet.multiPose(imgPose);
   }
-  segmentation = result;
-  segmentation.partMask.loadPixels();
-  segmentation.personMask.loadPixels();
 
-  console.log(segmentation);
+  sketch.draw = function () {
+    if (poses.length > 0) {
+      sketch.image(imgPose, 0, 0, width, height);
+      // drawSkeleton(poses);
+      // drawKeypoints(poses);
+      drawOnFace(1);
+      drawOnFace2(2);
 
-  let leftFaceColor = JSON.stringify(segmentation.bodyParts.leftFace.color);
-  let rightFaceColor = JSON.stringify(segmentation.bodyParts.rightFace.color);
+      sketch.noLoop();
+    }
+  };
 
-  for (let i = 0; i < segmentation.personMask.pixels.length; i += 4) {
-    let maskColor = JSON.stringify([
-      segmentation.partMask.pixels[i],
-      segmentation.partMask.pixels[i + 1],
-      segmentation.partMask.pixels[i + 2],
-    ]);
-    // Compare pixel colors from partMask
-    if (maskColor !== leftFaceColor && maskColor !== rightFaceColor) {
-      // segmentation.personMask.pixels[i]
-      // segmentation.personMask.pixels[i + 1]
-      // segmentation.personMask.pixels[i + 2]
-      segmentation.personMask.pixels[i + 3] = 0;
+  function drawOnFace2(num) {
+    noseX = poses[num].pose.keypoints[0].position.x;
+    noseY = poses[num].pose.keypoints[0].position.y;
+    sketch.fill(255, 255, 255);
+    sketch.ellipse(noseX, noseY, 50);
+  }
+
+  function drawOnFace(num) {
+    noseX = poses[num].pose.keypoints[0].position.x;
+    noseY = poses[num].pose.keypoints[0].position.y;
+    sketch.fill(255, 255, 0);
+    sketch.ellipse(noseX, noseY, 50);
+  }
+
+  // A function to draw ellipses over the detected keypoints
+  function drawKeypoints() {
+    // Loop through all the poses detected
+    for (let i = 0; i < poses.length; i++) {
+      // For each pose detected, loop through all the keypoints
+      let pose = poses[i].pose;
+      for (let j = 0; j < pose.keypoints.length; j++) {
+        // A keypoint is an object describing a body part (like rightArm or leftShoulder)
+        let keypoint = pose.keypoints[j];
+        // Only draw an ellipse is the pose probability is bigger than 0.2
+        if (keypoint.score > 0.2) {
+          sketch.fill(255, 0, 0);
+          sketch.noStroke();
+          sketch.ellipse(keypoint.position.x, keypoint.position.y, 10, 10);
+        }
+      }
     }
   }
+  // A function to draw the skeletons
+  function drawSkeleton() {
+    // Loop through all the skeletons detected
+    for (let i = 0; i < poses.length; i++) {
+      let skeleton = poses[i].skeleton;
+      // For every skeleton, loop through all body connections
+      for (let j = 0; j < skeleton.length; j++) {
+        let partA = skeleton[j][0];
+        let partB = skeleton[j][1];
+        sketch.stroke(255, 0, 0);
+        sketch.line(
+          partA.position.x,
+          partA.position.y,
+          partB.position.x,
+          partB.position.y
+        );
+      }
+    }
+  }
+};
 
-  segmentation.personMask.updatePixels();
-}
+new p5(s2);
 
-////////2nd canvas for poseNet
-// var s2 = function (sketch) {
-//   sketch.setup = function () {
-//     let canvas1 = sketch.createCanvas(320, 240);
-//     //canvas1.position(320, 0);
-//   };
-//   sketch.draw = function () {
-//     sketch.background(100, 100, 20);
-//   };
-// };
-
-// new p5(s2);
+//reference that explains which array refers to which bodypart
+//https://github.com/ml5js/ml5-library/issues/540
