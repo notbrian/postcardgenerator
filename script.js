@@ -193,8 +193,10 @@ var s2 = function (sketch) {
       newImage,
       noseX,
       noseY,
-      210,
-      (newImage.height / newImage.width) * 210
+      // 210,
+      // (newImage.height / newImage.width) * 210
+      70,
+      60
     );
     sketch.pop();
   }
