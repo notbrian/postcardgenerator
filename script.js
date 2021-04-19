@@ -1,4 +1,3 @@
-// console.log("Hello World!");
 // https://github.com/tensorflow/tfjs-models/tree/master/body-pix
 //https://learn.ml5js.org/#/reference/bodypix?id=segmentwithparts
 
@@ -9,12 +8,16 @@
 
 function draw() {}
 
+let segmentation1;
+let newImage;
+
+let video = document.getElementById("video");
+
 ///////1st canvas for bodyPix
 var s1 = function (sketch) {
-  let bodypix;
   //let video1;
-  let segmentation1;
   let img1;
+  let bodypix;
 
   const options = {
     multiplier: 0.5, // 1.0, 0.75, or 0.50, 0.25
@@ -28,12 +31,22 @@ var s1 = function (sketch) {
   };
 
   sketch.setup = function () {
-    let canvas1 = sketch.createCanvas(320, 240);
+    // let canvas1 = sketch.createCanvas(320, 240);
     //canvas1.position(0, 0);
 
-    bodypix.segmentWithParts(img1, gotResults);
+    navigator.mediaDevices.getUserMedia({ video: true }).then((stream) => {
+      video.srcObject = stream;
+      video.play();
+    });
+    // bodypix.segmentWithParts(img1, gotResults);
   };
 
+  let button = document.getElementById("startBtn");
+  button.addEventListener("click", handleButton);
+
+  function handleButton() {
+    bodypix.segmentWithParts(video, gotResults);
+  }
   function gotResults(error, result) {
     if (error) {
       console.log(error);
@@ -50,30 +63,61 @@ var s1 = function (sketch) {
       segmentation1.bodyParts.rightFace.color
     );
 
-    for (let i = 0; i < segmentation1.personMask.pixels.length; i += 4) {
-      let maskColor = JSON.stringify([
-        segmentation1.partMask.pixels[i],
-        segmentation1.partMask.pixels[i + 1],
-        segmentation1.partMask.pixels[i + 2],
-      ]);
-      // Compare pixel colors from partMask
-      if (maskColor !== leftFaceColor && maskColor !== rightFaceColor) {
-        // segmentation1.personMask.pixels[i]
-        // segmentation1.personMask.pixels[i + 1]
-        // segmentation1.personMask.pixels[i + 2]
-        segmentation1.personMask.pixels[i + 3] = 0;
+    let pixels = segmentation1.personMask.pixels;
+    let startingPos = undefined;
+    let finalWidthHeight = [0, 0];
+    for (let y = 0; y < segmentation1.personMask.height; y++) {
+      for (let x = 0; x < segmentation1.personMask.width; x++) {
+        let index = (x + y * segmentation1.personMask.width) * 4;
+
+        let maskColor = JSON.stringify([
+          segmentation1.partMask.pixels[index],
+          segmentation1.partMask.pixels[index + 1],
+          segmentation1.partMask.pixels[index + 2],
+        ]);
+
+        if (maskColor !== leftFaceColor && maskColor !== rightFaceColor) {
+          // segmentation1.personMask.pixels[i]
+          // segmentation1.personMask.pixels[i + 1]
+          // segmentation1.personMask.pixels[i + 2]
+          // segmentation1.personMask.pixels[index + 3] = 0;
+        } else if (startingPos == undefined) {
+          startingPos = [x, y];
+        } else if (x < startingPos[0] && y < startingPos[1]) {
+          startingPos = [x, y];
+        } else {
+          finalWidthHeight = [x, y - startingPos[1]];
+        }
       }
     }
-
+    newImage = new p5.Image(finalWidthHeight[0], finalWidthHeight[1]);
+    newImage.copy(
+      segmentation1.personMask,
+      startingPos[0] - finalWidthHeight[0] / 2,
+      startingPos[1],
+      finalWidthHeight[0],
+      finalWidthHeight[1],
+      0,
+      0,
+      newImage.width,
+      newImage.height
+    );
     segmentation1.personMask.updatePixels();
   }
 
-  sketch.draw = function () {
-    sketch.background(100);
-    if (segmentation1) {
-      sketch.image(segmentation1.personMask, 0, 0, sketch.width, sketch.height);
-    }
-  };
+  // sketch.draw = function () {
+  //   sketch.background(100);
+  //   if (segmentation1) {
+  //     sketch.image(segmentation1.personMask, 0, 0, sketch.width, sketch.height);
+  //     sketch.image(
+  //       newImage,
+  //       50,
+  //       0,
+  //       newImage.width * 0.3,
+  //       newImage.height * 0.3
+  //     );
+  //   }
+  // };
 };
 
 new p5(s1);
@@ -122,25 +166,37 @@ var s2 = function (sketch) {
       sketch.image(imgPose, 0, 0, width, height);
       // drawSkeleton(poses);
       // drawKeypoints(poses);
-      drawOnFace(1);
-      drawOnFace2(2);
-
-      sketch.noLoop();
+      if (segmentation1) {
+        poses.forEach((pose, i) => {
+          drawOnFace(i);
+        });
+      }
+      // sketch.noLoop();
     }
   };
 
-  function drawOnFace2(num) {
-    noseX = poses[num].pose.keypoints[0].position.x;
-    noseY = poses[num].pose.keypoints[0].position.y;
-    sketch.fill(255, 255, 255);
-    sketch.ellipse(noseX, noseY, 50);
-  }
+  // function drawOnFace2(num) {
+  //   noseX = poses[num].pose.keypoints[0].position.x;
+  //   noseY = poses[num].pose.keypoints[0].position.y;
+  //   sketch.fill(255, 255, 255);
+  //   sketch.ellipse(noseX, noseY, 50);
+  // }
 
   function drawOnFace(num) {
     noseX = poses[num].pose.keypoints[0].position.x;
     noseY = poses[num].pose.keypoints[0].position.y;
     sketch.fill(255, 255, 0);
-    sketch.ellipse(noseX, noseY, 50);
+    sketch.ellipse(noseX, noseY, 10);
+    sketch.push();
+    sketch.imageMode(CENTER);
+    sketch.image(
+      newImage,
+      noseX,
+      noseY,
+      210,
+      (newImage.height / newImage.width) * 210
+    );
+    sketch.pop();
   }
 
   // A function to draw ellipses over the detected keypoints
